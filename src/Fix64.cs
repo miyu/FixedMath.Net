@@ -2,6 +2,9 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 
+// if enabled, numeric overflow is saturating rather than undefined behavior.
+//#define use_saturating_overflow
+
 namespace FixMath.NET
 {
 
@@ -34,7 +37,7 @@ namespace FixMath.NET
         const long MAX_VALUE = long.MaxValue;
         const long MIN_VALUE = long.MinValue;
         const int NUM_BITS = 64;
-        const int FRACTIONAL_PLACES = 32;
+       public const int FRACTIONAL_PLACES = 32;
         const long ONE = 1L << FRACTIONAL_PLACES;
         const long PI_TIMES_2 = 0x6487ED511;
         const long PI = 0x3243F6A88;
@@ -160,10 +163,15 @@ namespace FixMath.NET
             var xl = x.m_rawValue;
             var yl = y.m_rawValue;
             var diff = xl - yl;
+
             // if signs of operands are different and signs of sum and x are different
             if ((((xl ^ yl) & (xl ^ diff)) & MIN_VALUE) != 0)
             {
+#if use_saturating_overflow
                 diff = xl < 0 ? MIN_VALUE : MAX_VALUE;
+#else
+                throw new OverflowException();
+#endif
             }
             return new Fix64(diff);
         }
@@ -186,7 +194,6 @@ namespace FixMath.NET
 
         public static Fix64 operator *(Fix64 x, Fix64 y)
         {
-
             var xl = x.m_rawValue;
             var yl = y.m_rawValue;
 
@@ -219,14 +226,22 @@ namespace FixMath.NET
             {
                 if (sum < 0 || (overflow && xl > 0))
                 {
+#if use_saturating_overflow
                     return MaxValue;
+#else
+                    throw new OverflowException();
+#endif
                 }
             }
             else
             {
                 if (sum > 0)
                 {
+#if use_saturating_overflow
                     return MinValue;
+#else
+                    throw new OverflowException();
+#endif
                 }
             }
 
@@ -235,7 +250,11 @@ namespace FixMath.NET
             var topCarry = hihi >> FRACTIONAL_PLACES;
             if (topCarry != 0 && topCarry != -1 /*&& xl != -17 && yl != -17*/)
             {
+#if use_saturating_overflow
                 return opSignsEqual ? MaxValue : MinValue;
+#else
+                throw new OverflowException();
+#endif
             }
 
             // If signs differ, both operands' magnitudes are greater than 1,
@@ -255,7 +274,12 @@ namespace FixMath.NET
                 }
                 if (sum > negOp && negOp < -ONE && posOp > ONE)
                 {
+               
+#if use_saturating_overflow
                     return MinValue;
+#else
+                    throw new OverflowException();
+#endif
                 }
             }
 
@@ -340,7 +364,12 @@ namespace FixMath.NET
                 // Detect overflow
                 if ((div & ~(0xFFFFFFFFFFFFFFFF >> bitPos)) != 0)
                 {
+               
+#if use_saturating_overflow
                     return ((xl ^ yl) & MIN_VALUE) == 0 ? MaxValue : MinValue;
+#else
+                    throw new OverflowException();
+#endif
                 }
 
                 remainder <<= 1;
@@ -433,12 +462,20 @@ namespace FixMath.NET
                 return neg ? One / (Fix64)2 : (Fix64)2;
             }
             if (x >= Log2Max)
-            {
+            {      
+#if use_saturating_overflow
                 return neg ? One / MaxValue : MaxValue;
+#else
+                return neg ? One / MaxValue : throw new OverflowException();
+#endif
             }
             if (x <= Log2Min)
             {
+#if use_saturating_overflow
                 return neg ? MaxValue : Zero;
+#else
+                return neg ? throw new OverflowException() : Zero;
+#endif
             }
 
             /* The algorithm is based on the power series for exp(x):
@@ -1073,7 +1110,7 @@ namespace FixMath.NET
 
         public Fix64(int value)
         {
-            m_rawValue = value * ONE;
+            m_rawValue = value * ONE; // should compile to a shift
         }
     }
 }
