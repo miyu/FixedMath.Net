@@ -104,36 +104,62 @@ namespace FixMath.NET
         {
             var hasFractionalPart = (value.m_rawValue & 0x00000000FFFFFFFF) != 0;
             return hasFractionalPart ? Floor(value) + One : value;
-        }
+      }
 
-        /// <summary>
-        /// Rounds a value to the nearest integral value.
-        /// If the value is halfway between an even and an uneven value, returns the even value.
-        /// </summary>
-        public static Fix64 Round(Fix64 value)
-        {
-            var fractionalPart = value.m_rawValue & 0x00000000FFFFFFFF;
-            var integralPart = Floor(value);
-            if (fractionalPart < 0x80000000)
-            {
-                return integralPart;
-            }
-            if (fractionalPart > 0x80000000)
-            {
-                return integralPart + One;
-            }
-            // if number is halfway between two values, round to the nearest even number
-            // this is the method used by System.Math.Round().
-            return (integralPart.m_rawValue & ONE) == 0
-                       ? integralPart
-                       : integralPart + One;
-        }
+       /// <summary>
+       /// Rounds a value to the nearest integral value.
+       /// If the value is halfway between an even and an uneven value, returns the even value.
+       /// </summary>
+       public static Fix64 Round(Fix64 value) {
+          var fractionalPart = value.m_rawValue & 0x00000000FFFFFFFF;
+          var integralPart = Floor(value);
+          if (fractionalPart < 0x80000000) {
+             return integralPart;
+          }
+          if (fractionalPart > 0x80000000) {
+             return integralPart + One;
+          }
+          // if number is halfway between two values, round to the nearest even number
+          // this is the method used by System.Math.Round().
+          return (integralPart.m_rawValue & ONE) == 0
+             ? integralPart
+             : integralPart + One;
+      }
 
-        /// <summary>
-        /// Adds x and y. Performs saturating addition, i.e. in case of overflow, 
-        /// rounds to MinValue or MaxValue depending on sign of operands.
-        /// </summary>
-        public static Fix64 operator +(Fix64 x, Fix64 y)
+       /// <summary>
+       /// Rounds a value to the nearest value at a certain precision.
+       /// If the value is halfway between an even and an uneven value, returns the even value.
+       /// </summary>
+       public static Fix64 Round(Fix64 value, int shift = FRACTIONAL_PLACES) {
+          if (shift == 0) return value;
+          if (shift >= 64) throw new ArgumentOutOfRangeException();
+
+          var fractionalMask = (1L << shift) - 1;
+          var integralMask = ~((1UL << shift) - 1);
+          var fractionalMidpoint = 1L << (shift - 1);
+
+          var fractionalPart = value.m_rawValue & fractionalMask;
+          var integralPart = new Fix64((long)((ulong)value.m_rawValue & integralMask));
+          if (fractionalPart < fractionalMidpoint) {
+             return integralPart;
+          }
+
+          var fractionalOne = new Fix64(1L << shift);
+          if (fractionalPart > fractionalMidpoint) {
+             return integralPart + fractionalOne;
+          }
+          // if number is halfway between two values, round to the nearest even number
+          // this is the method used by System.Math.Round().
+          return (integralPart.m_rawValue & fractionalOne.RawValue) == 0
+             ? integralPart
+             : integralPart + fractionalOne;
+       }
+
+      /// <summary>
+      /// Adds x and y. Performs saturating addition, i.e. in case of overflow, 
+      /// rounds to MinValue or MaxValue depending on sign of operands.
+      /// </summary>
+      public static Fix64 operator +(Fix64 x, Fix64 y)
         {
             var xl = x.m_rawValue;
             var yl = y.m_rawValue;
