@@ -629,6 +629,8 @@ namespace FixMath.NET
             return Pow2(exp * log2);
         }
 
+        private static readonly Fix64 c0_5 = (Fix64)0.5;
+
         /// <summary>
         /// Returns the square root of a specified number.
         /// </summary>
@@ -644,6 +646,9 @@ namespace FixMath.NET
                 // mathematically undefined for x < 0. So we just throw an exception.
                 throw new ArgumentOutOfRangeException("Negative value passed to Sqrt", "x");
             }
+
+            // this is slower - miyu
+            // return Pow(x, c0_5);
 
             var num = (ulong)xl;
             var result = 0UL;
